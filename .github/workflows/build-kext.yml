@@ -12,8 +12,8 @@ name: build
 # On a tag v*: builds NootedGreen.kext + the macos/ Metal/shader stack and publishes a release with
 #   two assets — the bare kext, and a zip that installs full Metal WITHOUT Xcode (prebuilt kext +
 #   Apple's 16.0.32 TGL bundles + copy-only installer).
-# On push/PR/workflow_dispatch: builds the same stack + uploads artifacts (no publish) so a broken
-#   release path fails this run, not a separate one.
+# On push/workflow_dispatch: publishes the build as a prerelease.
+# On pull_request: builds and verifies only (no publish).
 #
 # The sgiammori/NootedGreen commit is parsed from install.sh (NG_COMMIT) so the hash has one source.
 
@@ -81,27 +81,28 @@ jobs:
           cp macos/RELEASE-README.txt "$PKG/README.txt"
           (cd pkg && zip -qrX IrisXe-i3-1220P-tahoe.zip IrisXe-i3-1220P)
 
-      - name: Upload kext
-        uses: actions/upload-artifact@v7
-        with:
-          name: NootedGreen-kext
-          path: build/NootedGreen.kext
-          if-no-files-found: error
-
-      - name: Upload install zip
-        uses: actions/upload-artifact@v7
-        with:
-          name: IrisXe-i3-1220P-tahoe-zip
-          path: pkg/IrisXe-i3-1220P-tahoe.zip
-          if-no-files-found: error
-
       - name: Publish release
-        if: startsWith(github.ref, 'refs/tags/')
+        if: github.event_name != 'pull_request'
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh release create "$GITHUB_REF_NAME" \
-            --title "$GITHUB_REF_NAME" \
-            --generate-notes \
-            build/NootedGreen.kext \
-            pkg/IrisXe-i3-1220P-tahoe.zip
+          if [[ "$GITHUB_REF" == refs/tags/* ]]; then
+            TAG="$GITHUB_REF_NAME"
+            TITLE="$GITHUB_REF_NAME"
+            gh release create "$TAG" \
+              --title "$TITLE" \
+              --generate-notes \
+              build/NootedGreen.kext \
+              pkg/IrisXe-i3-1220P-tahoe.zip
+          else
+            TAG="build-${GITHUB_RUN_NUMBER}"
+            TITLE="Build ${GITHUB_RUN_NUMBER}"
+            NOTES="Automated build from ${GITHUB_SHA}."
+            gh release create "$TAG" \
+              --target "$GITHUB_SHA" \
+              --title "$TITLE" \
+              --notes "$NOTES" \
+              --prerelease \
+              build/NootedGreen.kext \
+              pkg/IrisXe-i3-1220P-tahoe.zip
+          fi
