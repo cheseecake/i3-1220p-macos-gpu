@@ -4,7 +4,7 @@
 # Clones VoodooI2C/VoodooGPIO at 717ab2a and applies patches/voodoogpio-tigerlakelp-start.diff (upstream's
 # VoodooGPIOTigerLakeLP::start skips VoodooGPIOIntel::start, so the controller never maps or registers).
 # Keeps the bundle id org.coolstar.VoodooGPIO (VoodooI2C 2.9.1 links against it, compatible version 1.1).
-# Copy build/VoodooGPIO.kext into EFI/OC/Kexts/VoodooI2C.kext/Contents/PlugIns.
+# Copy build/VoodooGPIO.kext into your EFI's OC/Kexts/VoodooI2C.kext/Contents/PlugIns.
 set -e
 ROOT=${0:A:h}
 DEPS=$ROOT/build/deps

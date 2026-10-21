@@ -6,12 +6,13 @@
 #   zsh install.sh --build-only   checks + download + build, no install
 #   zsh install.sh --uninstall
 #
-# Before: boot this Mac through the repository's OpenCore EFI (see make-efi.sh / docs/INSTALL.md).
+# Before: boot this Mac through your own OpenCore EFI (device-id 9A49 spoof + ig-platform-id 0x9A490000;
+# see docs/PORT-I3-1220P.md). This repo does not ship an EFI.
 # What it does:
 #   1. checks the machine (Intel, macOS build, Command Line Tools, GPU spoof, NootedGreen loaded)
 #   2. downloads NootedGreen at the pinned commit, which provides Apple's 16.0.32 Tiger Lake driver bundles
 #   3. builds NootedGreen.kext, the patched Metal driver, libxedrv and the shader compiler
-#   4. installs them (sudo) and tells you what to copy to the EFI
+#   4. installs them (sudo) and tells you what to copy to your EFI
 set -e
 ROOT=${0:A:h}
 BUILD_REQ=25G241
@@ -31,7 +32,7 @@ if [[ "$1" == "--uninstall" ]]; then
              AppleIntelTGLGraphicsGLDriver.bundle AppleIntelTGLGraphicsVADriver.bundle AppleIntelTGLGraphicsVAME.bundle \
              AppleIntelGraphicsShared.bundle; do rm -rf /Library/Extensions/$k; done
     kmutil load -z --load-style match-only 2>/dev/null || true'
-  echo "done. Also disable NootedGreen.kext in your config.plist (or boot config-install.plist), then reboot."
+  echo "done. Also disable NootedGreen.kext in your config.plist, then reboot."
   exit 0
 fi
 
@@ -44,7 +45,7 @@ else warn "macOS build is $BUILD, the patches were made for $BUILD_REQ (Tahoe 26
 xcode-select -p >/dev/null 2>&1 && ok "Command Line Tools" || fail "install the Command Line Tools first: xcode-select --install"
 for t in git python3 clang codesign; do command -v $t >/dev/null || fail "missing tool: $t"; done
 if ioreg -r -c IOPCIDevice -n IGPU -d 1 2>/dev/null | grep -q '"device-id" = <499a0000>'; then ok "GPU presented as Tiger Lake (device-id 9A49)"
-else warn "IGPU device-id is not 9A49: is this Mac booting through the repository's EFI?"; fi
+else warn "IGPU device-id is not 9A49: is this Mac booting through an EFI that spoofs it (WhateverGreen / DeviceProperties)?"; fi
 if kextstat 2>/dev/null | grep -q NootedGreen; then ok "NootedGreen loaded"
 else warn "NootedGreen is not loaded (fine for a first install; the EFI must load it for acceleration)"; fi
 [[ "$1" == "--check" ]] && exit 0
@@ -68,9 +69,9 @@ sudo zsh $ROOT/macos/install-macos.sh $SLE $LE
 cat <<EOF
 
 All set. Before rebooting:
-  - Copy  $ROOT/build/NootedGreen.kext  into  EFI/OC/Kexts/  (replace the old one), on the EFI you boot from.
+  - Copy  $ROOT/build/NootedGreen.kext  into  your EFI's  OC/Kexts/  (replace the old one).
     The internal ESP can be mounted with: sudo diskutil mount disk0s1   (check the disk with: diskutil list)
-  - Use the accelerated config.plist (with the boot-args from the repository).
+  - Use your accelerated config.plist (with the boot-args from docs/PORT-I3-1220P.md).
   - If macOS asks to allow a system extension, approve it in System Settings > Privacy & Security.
 Then reboot. Check with: system_profiler SPDisplaysDataType  (look for "Metal Support")
 EOF

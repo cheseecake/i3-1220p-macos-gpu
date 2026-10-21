@@ -2,7 +2,7 @@
 # Builds NootedGreen.kext (this fork, src/NootedGreen) without Xcode, using only the Command Line Tools.
 #   zsh build-nootedgreen.sh            -> build/NootedGreen.kext
 # Fetches the build dependencies the first time: acidanthera/MacKernelSDK (git) and the Lilu DEBUG release
-# (headers + plugin_start.cpp). Copy build/NootedGreen.kext into EFI/OC/Kexts.
+# (headers + plugin_start.cpp). Copy build/NootedGreen.kext into your EFI's OC/Kexts.
 set -e
 ROOT=${0:A:h}
 SRC=$ROOT/src/NootedGreen

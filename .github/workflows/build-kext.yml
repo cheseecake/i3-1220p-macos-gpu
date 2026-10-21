@@ -1,0 +1,37 @@
+name: build-kext
+
+# Builds NootedGreen.kext (i3-1220P port) on a GitHub-hosted macOS runner, so the
+# kext can be produced without a local Mac. The build is cross-compiled to x86_64
+# (the kext targets Intel Macs), so an arm64 runner (macos-latest) is fine.
+on:
+  push:
+    branches: [main, port-i3-1220p]
+    tags: ['v*']
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build NootedGreen.kext
+        run: zsh build-nootedgreen.sh
+
+      - name: Verify
+        run: |
+          echo '== architecture'
+          file build/NootedGreen.kext/Contents/MacOS/NootedGreen
+          echo '== signature'
+          codesign -dv build/NootedGreen.kext 2>&1 || true
+          echo '== OSBundleLibraries'
+          /usr/libexec/PlistBuddy -c 'Print :OSBundleLibraries' build/NootedGreen.kext/Contents/Info.plist
+
+      - name: Upload kext
+        uses: actions/upload-artifact@v4
+        with:
+          name: NootedGreen-kext
+          path: build/NootedGreen.kext
+          if-no-files-found: error

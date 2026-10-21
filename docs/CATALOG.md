@@ -62,7 +62,7 @@ A feature marked "default ON" inside those hooks is therefore ON only when `-ngr
 - XE-RESFREE, XE-GTFREQ;
 - the bootmode route installation, keepefi, stride/xtile/max2560 and engine-inert.
 
-The release `config.plist` (`EFI/OC/config.plist`) uses these boot-args:
+The release boot-args (set in your own `config.plist`; this repo no longer ships an EFI — see [PORT-I3-1220P.md](PORT-I3-1220P.md#efi-prerequisites-you-set-these-not-ported)) are:
 `IGLogLevel=3 msgbuf=400000 -ngreentglwithgfx -allow3d -disablegfxfirmware ngreen-dmc=adlp -ngreenv189 -ngreenkeepefi -ngreenxefix -ngreenfixbootmode amfi_get_out_of_my_way=1 ngreenSched=4 ngreenV142=3 ngreenblmax=48000`.
 
 ### 1.1 Display / framebuffer
@@ -902,7 +902,7 @@ Helper library (ChefKiss): SolveRequestPlus (symbol then optional pattern), Rout
 
 ## 3. Consolidated boot-arg reference
 
-This table lists every boot-arg the plugin parses. They are read with `checkKernelArgument` (flag) or `PE_parse_boot_argn` (value). The "Release" column marks the boot-args used by `EFI/OC/config.plist`. Section numbers point to the detailed entries.
+This table lists every boot-arg the plugin parses. They are read with `checkKernelArgument` (flag) or `PE_parse_boot_argn` (value). The "Release" column marks the recommended release boot-args (set in your own `config.plist`; this repo no longer ships an EFI). Section numbers point to the detailed entries.
 
 ### 3.1 Upstream boot-args
 

@@ -1,94 +1,99 @@
-# Iris Xe acceleration on macOS Tahoe — Dell XPS 13 Plus (9320)
+# Intel UHD Graphics (i3-1220P) on macOS Tahoe — NootedGreen driver port
 
-Hardware-accelerated graphics (**Metal, Core Animation, Liquid Glass**) for the **Intel Iris Xe of the i7-1360P (Raptor Lake-P, 8086:A7A0)** on **macOS Tahoe 26.7.1**, in an OpenCore hackintosh.
+Kernel + user-space graphics driver for the **Intel UHD Graphics of the Core i3-1220P (Alder Lake-P, 64 EU, 8086:4628)** on **macOS Tahoe 26.7.1 (25G241)**.
 
-There is no Apple driver for Raptor Lake. This project runs **Apple's own driver for Tiger Lake Iris Xe** (GPUDriversIntel 16.0.32, written for Macs that never shipped) on the newer GPU. Both GPUs share the Xe-LP (Gen12) architecture. A modified **NootedGreen** Lilu plugin bridges the generation gap in the kernel, and a set of user-space patches bridges the gap between that 2020-era driver and Tahoe's Metal stack.
+There is no Apple driver for Alder Lake. This project runs **Apple's own driver for Tiger Lake Iris Xe** (GPUDriversIntel 16.0.32, written for Macs that never shipped) on the newer GPU. Both GPUs share the Xe-LP (Gen12) architecture. A modified **NootedGreen** Lilu plugin bridges the generation gap in the kernel, and a set of user-space patches bridges the gap between that 2020-era driver and Tahoe's Metal stack.
 
-> 🚧 **Work in progress — this repository is a living snapshot.** Development happens day by day on the author's own
-> XPS 13 Plus, and every fix is committed here after it is confirmed on real hardware. Expect frequent updates;
-> see [CHANGELOG.md](CHANGELOG.md) for what changed and what is still being tested, and the
-> [releases](../../releases) for the stable points.
-
-> 🇧🇷 Leia em português: [README.pt-BR.md](README.pt-BR.md)
-
-> ⚠️ **Experimental.** Expect occasional GPU hangs and kernel panics. Keep a second bootable disk (or the USB installer) around. Read [docs/STATUS.md](docs/STATUS.md) before you start.
+> ⚠️ **Experimental.** Expect occasional GPU hangs and kernel panics. Keep a second bootable disk around. Read [docs/STATUS.md](docs/STATUS.md) before you start.
+>
+> 🔧 **EFI is not shipped.** This is a driver project, not an OpenCore distribution. You bring your own EFI: OpenCore + **WhateverGreen** handles the Tiger Lake device-id spoof (`device-id=9A49`, `AAPL,ig-platform-id=0x9A490000`) and frame-buffer setup. See [docs/PORT-I3-1220P.md](docs/PORT-I3-1220P.md) for the exact DeviceProperties and boot-args.
 
 ---
 
-## What works
+## What this repo is
+
+| Piece | Provided here? | What it does |
+|---|---|---|
+| **NootedGreen.kext** (Lilu plugin) | ✅ `src/NootedGreen/` | kernel patches: display engine 13, GuC-less scheduler, IOSurface/Tahoe layout, GT topology for 64 EU, GPU frequency |
+| **macos/ user-space stack** | ✅ `macos/` | patched TGL Metal driver, `libxedrv` adapter, shader compiler — required for Metal acceleration |
+| **tools/** | ✅ `tools/` | `xe-res` (resolution/DPI), `xe-brilho` (brightness), XeShim/xectl, diagnostics |
+| **EFI / OpenCore / ACPI / other kexts** | ❌ | your own — WhateverGreen does the device-id spoof + ig-platform-id |
+
+The kext **boots and lights the panel on its own** (compositor-only, no Metal). **Metal/GPU acceleration requires the `macos/` user-space stack** built and installed on top — see [Dependencies](docs/PORT-I3-1220P.md#dependencies-what-the-kext-needs-but-you-do-not-port-here).
+
+## What works (GPU)
 
 | Area | Status |
 |---|---|
-| Desktop, Dock, windows, Liquid Glass blur | ✅ GPU-accelerated through Metal |
-| Native panel resolution (3840×2400) and HiDPI scaling (1280–1920 pt wide) | ✅ (switch with `tools/xe-res`, not System Settings) |
-| GPU clock | ✅ 1100 MHz floor while busy (`ngreengtfreq`), idles in RC6 |
+| Desktop, Dock, windows, blur | ✅ GPU-accelerated through Metal (with `macos/` stack) |
+| GPU clock | ✅ 1100 MHz floor while busy (`ngreengtfreq`), idles in RC6 — equals the i3-1220P's RP0 |
 | HEIC / YUV images (wallpapers, photos) | ✅ |
-| App icons, Finder icons, image thumbnails | ✅ |
-| YouTube | ✅ in Chrome with GPU compositing off (see [docs/STATUS.md](docs/STATUS.md)) · ❌ Safari |
+| App/Finder icons, thumbnails | ✅ |
+| YouTube | ✅ in Chrome with GPU compositing off · ❌ Safari |
 | Hardware video decode (H.264/HEVC) | ❌ disabled on purpose, decoded on the CPU |
-| Brightness keys | ❌ use `tools/xe-brilho` |
 | System Settings › Displays | ⚠️ may panic, change resolution with `tools/xe-res` |
 | Long sessions | ⚠️ occasional GPU hang → WindowServer watchdog reboot |
 
-Everything else about the laptop (Wi-Fi via itlwm/HeliPort, Bluetooth, keyboard/trackpad/touchscreen via VoodooI2C, NVMe, battery) is a regular OpenCore setup. Internal audio (SoundWire RT714/RT1316) and the camera do **not** work on macOS.
+Everything else about the laptop (Wi-Fi, Bluetooth, keyboard/trackpad/touchscreen, NVMe, battery) is a regular OpenCore setup in **your own EFI** — out of scope here.
 
-## How it works (one paragraph)
+## Build the kext
 
-The EFI presents the GPU as Tiger Lake (`device-id 9A49`). Apple's TGL kexts load from `/Library/Extensions`, and **NootedGreen** patches them in memory: display engine 13 quirks, the GuC-less host scheduler, broken resolve paths, IOSurface layout changes in Tahoe, GPU frequency, and more ([docs/KERNEL-PATCHES.md](docs/KERNEL-PATCHES.md)). In user space, the TGL **Metal driver** is binary-patched and gets an adapter library (`libxedrv`) that converts Tahoe's private Metal structures to the old layout and works around hardware limits. The TGL **shader compiler** (IGC gen12lp, LLVM 3902) runs inside Tahoe's compiler service (LLVM 32023) through an API adapter and an LLVM bridge ([docs/METAL.md](docs/METAL.md)).
+You do **not** need a Mac to build the kext — it builds on GitHub.
+
+### Option A — GitHub Actions (no Mac needed)
+
+Push to `main` or `port-i3-1220p` (or run the workflow manually from the Actions tab). The [build-kext](.github/workflows/build-kext.yml) workflow compiles `src/NootedGreen` on a macOS runner and uploads `NootedGreen.kext` as an artifact. Download it from the run's **Artifacts** section.
+
+### Option B — local build (Command Line Tools only, on any Mac)
+
+```sh
+xcode-select --install          # once
+zsh build-nootedgreen.sh        # -> build/NootedGreen.kext
+```
+
+`build-nootedgreen.sh` fetches MacKernelSDK + Lilu (DEBUG) and compiles with `clang -mkernel`. Output: `build/NootedGreen.kext`. Verify with `kmutil load -p build/NootedGreen.kext`, `codesign -dv`, `file` — see [docs/PORT-I3-1220P.md](docs/PORT-I3-1220P.md#verify-the-built-kext).
+
+This kext cannot be built on Windows/Linux (needs `clang -mkernel`, MacKernelSDK, Mach-O `codesign`).
+
+## Full acceleration stack (Metal)
+
+The kext alone is compositor-only. For Metal, build and install the user-space stack on the i3-1220P Hackintosh itself:
+
+```sh
+zsh install.sh                  # checks, fetches Apple's 16.0.32 TGL bundles via NootedGreen, builds, installs
+```
+
+Then copy `build/NootedGreen.kext` into your EFI's `OC/Kexts/` (this repo's kext replaces the one `install.sh` built), approve the extension if asked, and reboot. `zsh install.sh --check` runs only the checks; `zsh install.sh --uninstall` removes the stack.
+
+Prerequisites your EFI must already provide: device-id `0x9A49`, `AAPL,ig-platform-id=0x9A490000`, and the boot-args listed in [docs/PORT-I3-1220P.md](docs/PORT-I3-1220P.md#efi-prerequisites-you-set-these-not-ported).
 
 ## Repository layout
 
 ```
-EFI/                     OpenCore EFI for the XPS 13 Plus 9320 (serials removed — generate your own)
-  OC/config.plist        accelerated config
-  OC/config-install.plist  safe config for installing macOS (NootedGreen off, verbose)
-src/NootedGreen/         the modified NootedGreen source (Lilu plugin)
+src/NootedGreen/         the modified NootedGreen source (Lilu plugin), ported to 64 EU / 8 subslices
 build-nootedgreen.sh     builds src/NootedGreen with only the Command Line Tools
+.github/workflows/       CI: builds the kext on a macOS runner, uploads the artifact
 patches/                 diff of this fork against upstream NootedGreen 95f8189
 macos/                   user-space stack: Metal driver patcher, libxedrv, shader compiler, installer
-tools/                   xe-res (resolution/DPI), xe-brilho (brightness), xe-perfil (color profile),
-                         XeShim + xectl (register access), diagnostics/ (the test programs used to find bugs)
-docs/                    install guide, patch catalogs, status, debugging notes
+tools/                   xe-res (resolution/DPI), xe-brilho (brightness), XeShim + xectl, diagnostics/
+docs/                    port guide, patch catalogs, status, debugging notes
 ```
 
-Documentation: [INSTALL](docs/INSTALL.md) · [STATUS](docs/STATUS.md) · [KERNEL-PATCHES](docs/KERNEL-PATCHES.md) ·
-[METAL](docs/METAL.md) · [DEBUGGING](docs/DEBUGGING.md) · [HISTORY](docs/HISTORY.md) (how it was done, phase by phase) ·
-[EXPERIMENTS](docs/EXPERIMENTS.md) (what failed and why) · [CATALOG](docs/CATALOG.md) (full patch and tool reference)
+Documentation: [PORT-I3-1220P](docs/PORT-I3-1220P.md) · [INSTALL](docs/INSTALL.md) · [STATUS](docs/STATUS.md) ·
+[KERNEL-PATCHES](docs/KERNEL-PATCHES.md) · [METAL](docs/METAL.md) · [DEBUGGING](docs/DEBUGGING.md) ·
+[HISTORY](docs/HISTORY.md) · [EXPERIMENTS](docs/EXPERIMENTS.md) · [CATALOG](docs/CATALOG.md)
 
-## Quick start (Dell XPS 13 Plus 9320)
+## Porting notes (i3-1220P)
 
-**1. Make your EFI** (on any Mac, with git):
-
-```sh
-git clone https://github.com/JulioNectar/Hackintosh-XPS13Plus-IrisXe-Tahoe.git && cd Hackintosh-XPS13Plus-IrisXe-Tahoe
-zsh make-efi.sh        # -> dist/EFI with YOUR OWN serial numbers (never share them)
-```
-
-**2. Install macOS Tahoe 26.7.1 (25G241)** booting with `EFI/OC/config-install.plist` renamed to `config.plist`
-(acceleration off). BIOS: usual hackintosh settings (storage in AHCI/NVMe mode, not RAID/VMD; Secure Boot off).
-
-**3. On the new macOS**, with the accelerated `config.plist` back in place:
-
-```sh
-xcode-select --install          # Command Line Tools, once
-zsh install.sh                  # checks, downloads Apple's driver bundles via NootedGreen, builds, installs
-```
-
-Copy the freshly built `build/NootedGreen.kext` to `EFI/OC/Kexts/`, approve the extension if asked, reboot.
-`zsh install.sh --check` only runs the checks; `zsh install.sh --uninstall` removes everything.
-
-Other hardware (other Raptor Lake / Alder Lake laptops): the user-space part is the same, but you need your own
-EFI (ACPI, USB map, input devices). The full manual procedure is in [docs/INSTALL.md](docs/INSTALL.md).
+This branch changes **only GT topology** relative to the upstream RPL-P 96-EU fork: `NumSubSlices` 12 → 8 (4 DSS × 2 = 8 SS, 64 EU). Everything else — the 9A49 device-id spoof, `isRealTGL` (ADL-P = 0x9A → spoofed path), display engine 13, the ADL-P DMC blob, ADL-P DP link training, and the XE-GTFREQ frequency floor (1100 = the i3-1220P's RP0) — is generation-agnostic or already ADL-P-aware. Topology is overridable via `ngreensubslices`/`ngreenmaxeu`/`ngreenl3banks` boot-args. Full classification table and UNVERIFIED items in [docs/PORT-I3-1220P.md](docs/PORT-I3-1220P.md).
 
 ## Credits
 
 - **NootedGreen** by StezzaPilot ([sgiammori/NootedGreen](https://github.com/sgiammori/NootedGreen)): the base of the kernel plugin and the source of the 16.0.32 driver bundles. Licensed under the *Thou Shalt Not Profit License 1.0*, which also covers the fork in `src/`.
 - **WhateverXe** and **OpenCore Legacy Patcher fork** by b00t0x: reference for Gen12 on macOS.
 - **IntelIGPU-Tahoe**: reference for running the TGL Metal driver on Tahoe.
-- **acidanthera** (OpenCore, Lilu, WhateverGreen, VirtualSMC, MacKernelSDK), **OpenIntelWireless** (itlwm, IntelBluetoothFirmware), **VoodooI2C**, **USBToolBox**.
-- Developed on one Dell XPS 13 Plus by its owner, pair-programming with Claude (Anthropic).
+- **acidanthera** (OpenCore, Lilu, WhateverGreen, VirtualSMC, MacKernelSDK), **VoodooI2C**.
 
 ## License
 
-[Thou Shalt Not Profit License 1.0](LICENSE), the license of NootedGreen, which this project derives from. Third-party
-kexts in `EFI/` keep their own licenses, and no Apple binaries are included: see [NOTICE.md](NOTICE.md).
+[Thou Shalt Not Profit License 1.0](LICENSE), the license of NootedGreen, which this project derives from. No Apple binaries are included in this repo: see [NOTICE.md](NOTICE.md).

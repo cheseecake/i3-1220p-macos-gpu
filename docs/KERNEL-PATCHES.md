@@ -5,7 +5,7 @@ All patches live in `src/NootedGreen/kern_gen11.cpp` and `kern_green.cpp`. They 
 (build 25G241). Byte patches are `LookupPatchPlus` find/replace pairs, so they fail safely ("NAO encontrado" in the
 log) on a different driver build.
 
-The fixes below are active with the boot-args shipped in `EFI/OC/config.plist`:
+The fixes below are active with the release boot-args (set in your own `config.plist`; see [PORT-I3-1220P.md](PORT-I3-1220P.md#efi-prerequisites-you-set-these-not-ported)):
 
 ```
 IGLogLevel=3 msgbuf=400000 -ngreentglwithgfx -allow3d -disablegfxfirmware ngreen-dmc=adlp
@@ -73,6 +73,25 @@ Gen12 render compression needs the AUX translation table, which the TGL driver d
 | **XE-FBDPMS** | display sleep tore down pipe A, TRANS_DDI_FUNC_CTL_A, DDI_BUF_CTL_A and the scaler; wake re-enabled the panel and plane but never the eDP link → display stayed dark | `setFramebufferPowerState` on FB0: Wake→Doze/Sleep only clears `BLC_CTL` bit 31; back to Wake only sets it | `-ngreenfbdpms` |
 | **XE-GTFREQ** | without GuC the frequency policy object returns 0 → GPU stuck at 100 MHz (RPn) | `setGTFrequencyMMIO` never requests less than `ngreengtfreq` MHz (default 1100, RP0 is 1500). Idle GPU still enters RC6 | `ngreengtfreq=0` |
 | **XE-NOGVA** | the TGL personality advertises hardware video decode (`IOGVACodec`, HEVC caps). On RPL the decoder can't be created and decode sessions that request an output format fail with `-6680` → YouTube "an error occurred" | remove the `IOGVA*` properties → VideoToolbox uses software decode | `-ngreengva` |
+
+## GT topology (ADL-P port)
+
+The source kext hard-codes RPL-P 96 EU (6 DSS = 12 SS). For ADL-P i3-1220P (64 EU = 4 DSS = 8 SS),
+NumSubSlices changes from 12 to 8; MaxEUPerSubSlice (8) and L3BankCount (8) are unchanged for all
+Gen12 Xe-LP GT2. Two spots set NumSubSlices; both default to 8 now and are overridable via boot-args:
+
+| Patch | Where | Default | Override |
+|---|---|---|---|
+| `f3bbb`/`r3bbb` | byte patch @ IGAccelDevice+0x1158 (load-time default) | 8 | `ngreensubslices=N` (needs `getGPUInfo` routed) |
+| `getGPUInfo()` | runtime field override 0x1158 (+mirrors 0x1124 etc.) | 8 | `ngreensubslices=N` (runtime, authoritative) |
+
+- `ngreensubslices=N` — NumSubSlices (default 8 = i3-1220P). EU÷8 = N. (RPL 96EU→12, i3 64EU→8, 80EU→10.) Range 1..16, invalid → 8.
+- `ngreenmaxeu=N` — MaxEUPerSubSlice (default 8 for Gen12 LP DSS). Range 1..16, invalid → 8.
+- `ngreenl3banks=N` — L3BankCount (default 8 for Gen12 GT2). Range 1..16, invalid → 8.
+
+`getGPUInfo()` is routed on `!wegCoexist`, so it runs on the port's release boot-args and overwrites the field with the configured value. The byte patch provides the field's load-time default; they agree at 8 for the i3-1220P.
+
+No other change is needed for ADL-P: the 9A49 device-id spoof (`f3` SKU bypass + EFI DeviceProperties) is generation-agnostic; ADL-P is model 0x9A (spoofed path, `!isRealTGL`); display engine 13, the ADL-P DMC blob (`ngreen-dmc=adlp`) and ADL-P DP link training are already in-tree; and XE-GTFREQ's default floor (1100) equals the i3-1220P's RP0 (1.1 GHz), so the GPU runs at RP0 when busy and RC6 when idle — no frequency change required.
 
 ## Tahoe facts used by these patches (25G241)
 
