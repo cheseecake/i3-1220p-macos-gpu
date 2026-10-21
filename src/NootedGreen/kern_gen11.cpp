@@ -5998,8 +5998,8 @@ void Gen11::getGPUInfo(void *that)
 	if (!gNgreenPlatLogged) {
 		gNgreenPlatLogged = true;
 		SYSLOG("ngreen", "platform: isRealTGL=%d cpuModel=0x%x deviceId=0x%x pciRev=0x%x dmcIsAdlp=%d",
-			   callback->getIsRealTGL(), callback->cpuModel, callback->deviceId, callback->pciRevision,
-			   (int)callback->dmcIsAdlp);
+			   NGreen::callback->isRealTGL, NGreen::callback->cpuModel, NGreen::callback->deviceId, NGreen::callback->pciRevision,
+			   (int)NGreen::callback->dmcIsAdlp);
 	}
 
 	// --- GPU topology override (spoofed Gen12 Xe-LP) ---
