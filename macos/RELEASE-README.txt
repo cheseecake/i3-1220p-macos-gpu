@@ -6,10 +6,11 @@ Contents
   le/                 Apple's 16.0.32 TGL kexts (com.xxxxx bundle IDs).
   sle/               Apple's 16.0.32 TGL GL/VA/VAME/Shared/MTL bundles.
   out/                Prebuilt Metal stack: patched MTL17 bundle + xe.bundle (shader compiler).
-  install.sh          Copy-only installer (ditto + plutil + kmutil). No build.
+  install.command     Copy-only installer (ditto + plutil + kmutil). No build. Double-click it.
 
 Steps
-  1. sudo zsh install.sh
+  1. Double-click install.command  (it asks for your password and runs the install),
+       or run  sudo zsh install.command
        Copies the 16.0.32 driver + shader stack into /Library/Extensions,
        /Library/GPUBundles and /System/Library/Caches, and registers the
        kexts in the Auxiliary Kernel Collection.

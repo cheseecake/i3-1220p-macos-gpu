@@ -1,10 +1,16 @@
 #!/bin/zsh
 # No-build installer for the Iris Xe i3-1220P stack on macOS Tahoe 26.7.1 (build 25G241).
-# Everything is prebuilt; this only copies + registers. Run with sudo.
-#   sudo zsh install.sh
+# Everything is prebuilt; this only copies + registers. Double-click in Finder (it auto-asks
+# for your password), or run it manually:
+#   sudo zsh install.command
 set -e
-[[ $EUID -eq 0 ]] || { echo "run with sudo"; exit 1; }
+# Auto-elevate: a Finder double-click re-runs this whole script under sudo.
+if [[ $EUID -ne 0 ]]; then
+  print -P "  %F{blue}i%f Iris Xe installer — needs root, asking for your password"
+  exec sudo -E /bin/zsh -- "$0" "$@"
+fi
 HERE=${0:A:h}
+cd -- "$HERE"
 LE=$HERE/le; SLE=$HERE/sle; OUT=$HERE/out
 [[ -d $LE/AppleIntelTGLGraphics.kext && -d $SLE/AppleIntelTGLGraphicsMTLDriver.bundle && -d $OUT/xe.bundle ]] \
   || { echo "missing bundles in $HERE (need le/ sle/ out/)"; exit 1; }

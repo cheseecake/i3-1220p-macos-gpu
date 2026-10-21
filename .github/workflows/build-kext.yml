@@ -76,7 +76,8 @@ jobs:
           ditto "$SLE" "$PKG/sle"
           ditto "$LE"  "$PKG/le"
           ditto macos/out "$PKG/out"
-          cp macos/install-release.sh "$PKG/install.sh"
+          cp macos/install-release.sh "$PKG/install.command"
+          chmod +x "$PKG/install.command"
           cp macos/RELEASE-README.txt "$PKG/README.txt"
           (cd pkg && zip -qrX IrisXe-i3-1220P-tahoe.zip IrisXe-i3-1220P)
 
