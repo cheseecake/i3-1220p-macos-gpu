@@ -1,0 +1,87 @@
+name: release
+
+# Builds the full Iris Xe i3-1220P stack for macOS Tahoe 26.7.1 (25G241) and ships a GitHub
+# Release with two assets: the bare NootedGreen.kext, and a zip that installs full Metal
+# acceleration WITHOUT Xcode/CLT (prebuilt kext + Apple's 16.0.32 TGL bundles + the built
+# Metal/shader stack + a copy-only installer).
+#
+# Runner: macos-26-intel (Tahoe x86_64). MUST be Tahoe — macos/build-shader-compiler.sh reads
+# /System/Library/PrivateFrameworks/GPUCompiler.framework/Versions/32023/Libraries/libLLVM.dylib,
+# which only exists on Tahoe (Sequoia ships 3902). x86_64 is also native to the driver, so no
+# cross-compile.
+#
+# Tags push v* -> build + publish release. workflow_dispatch -> build + upload artifacts only.
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: macos-26-intel
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Fetch Apple's 16.0.32 TGL bundles (sgiammori/NootedGreen @ 95f8189)
+        run: |
+          NG=build/deps/NootedGreen
+          mkdir -p "$(dirname "$NG")"
+          git clone -q https://github.com/sgiammori/NootedGreen.git "$NG"
+          git -C "$NG" checkout -q 95f8189be65cb9f7b3d370ca78054be4cc8a62d
+          test -d "$NG/sle_Internal/sle/AppleIntelTGLGraphicsMTLDriver.bundle" || { echo "sle_Internal/sle missing in NootedGreen"; exit 1; }
+          test -d "$NG/sle_Internal/le/AppleIntelTGLGraphics.kext"           || { echo "sle_Internal/le missing in NootedGreen"; exit 1; }
+          echo "SLE=$NG/sle_Internal/sle" >> "$GITHUB_ENV"
+          echo "LE=$NG/sle_Internal/le"  >> "$GITHUB_ENV"
+
+      - name: Build NootedGreen.kext
+        run: zsh build-nootedgreen.sh
+
+      - name: Build the user-space Metal + shader stack
+        run: zsh macos/build-all.sh "$SLE"
+
+      - name: Verify outputs
+        run: |
+          file build/NootedGreen.kext/Contents/MacOS/NootedGreen
+          test -d macos/out/AppleIntelTGLGraphicsMTLDriver.bundle || { echo "patched MTL bundle missing"; exit 1; }
+          test -e macos/out/xe.bundle/Contents/MacOS/xe          || { echo "xe.bundle missing"; exit 1; }
+
+      - name: Assemble the no-build install package
+        run: |
+          PKG=pkg/IrisXe-i3-1220P
+          mkdir -p "$PKG"
+          ditto build/NootedGreen.kext "$PKG/NootedGreen.kext"
+          ditto "$SLE" "$PKG/sle"
+          ditto "$LE"  "$PKG/le"
+          ditto macos/out "$PKG/out"
+          cp macos/install-release.sh  "$PKG/install.sh"
+          cp macos/RELEASE-README.txt  "$PKG/README.txt"
+          (cd pkg && zip -qrX IrisXe-i3-1220P-tahoe.zip IrisXe-i3-1220P)
+
+      - name: Upload kext artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: NootedGreen-kext
+          path: build/NootedGreen.kext
+          if-no-files-found: error
+
+      - name: Upload install-zip artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: IrisXe-i3-1220P-tahoe.zip
+          path: pkg/IrisXe-i3-1220P-tahoe.zip
+          if-no-files-found: error
+
+      - name: Publish release
+        if: startsWith(github.ref, 'refs/tags/')
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "$GITHUB_REF_NAME" \
+            --title "$GITHUB_REF_NAME" \
+            --generate-notes \
+            build/NootedGreen.kext \
+            pkg/IrisXe-i3-1220P-tahoe.zip
