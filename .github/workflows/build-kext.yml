@@ -15,7 +15,7 @@ jobs:
   build:
     runs-on: macos-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Build NootedGreen.kext
         run: zsh build-nootedgreen.sh
@@ -30,7 +30,7 @@ jobs:
           /usr/libexec/PlistBuddy -c 'Print :OSBundleLibraries' build/NootedGreen.kext/Contents/Info.plist
 
       - name: Upload kext
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: NootedGreen-kext
           path: build/NootedGreen.kext
