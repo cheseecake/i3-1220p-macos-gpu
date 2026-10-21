@@ -61,8 +61,12 @@ jobs:
           codesign -dv build/NootedGreen.kext 2>&1 || true
           echo '== OSBundleLibraries'
           /usr/libexec/PlistBuddy -c 'Print :OSBundleLibraries' build/NootedGreen.kext/Contents/Info.plist
+          echo '== macos/out'
+          ls -la macos/out
+          echo '== xe.bundle/Contents/MacOS'
+          ls -la macos/out/xe.bundle/Contents/MacOS
           test -d macos/out/AppleIntelTGLGraphicsMTLDriver.bundle || { echo "patched MTL bundle missing"; exit 1; }
-          test -e macos/out/xe.bundle/Contents/MacOS/xe            || { echo "xe.bundle missing"; exit 1; }
+          test -e macos/out/xe.bundle/Contents/MacOS/libMTLIGCCompilerPlugin.dylib || { echo "xe.bundle adapter missing"; exit 1; }
 
       - name: Assemble the no-build install package
         run: |
