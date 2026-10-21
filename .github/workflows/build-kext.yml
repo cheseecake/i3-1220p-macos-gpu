@@ -10,7 +10,7 @@ name: build
 # x86 runner also avoids cross-compiling.
 #
 # On a tag v*: builds NootedGreen.kext + the macos/ Metal/shader stack and publishes a release with
-#   two assets — the bare kext, and a zip that installs full Metal WITHOUT Xcode (prebuilt kext +
+#   two assets — a zipped kext bundle, and a zip that installs full Metal WITHOUT Xcode (prebuilt kext +
 #   Apple's 16.0.32 TGL bundles + copy-only installer).
 # On push/workflow_dispatch: publishes the build as a prerelease.
 # On pull_request: builds and verifies only (no publish).
@@ -73,6 +73,7 @@ jobs:
           PKG=pkg/IrisXe-i3-1220P
           mkdir -p "$PKG"
           ditto build/NootedGreen.kext "$PKG/NootedGreen.kext"
+          ditto -c -k --sequesterRsrc --keepParent build/NootedGreen.kext pkg/NootedGreen.kext.zip
           ditto "$SLE" "$PKG/sle"
           ditto "$LE"  "$PKG/le"
           ditto macos/out "$PKG/out"
@@ -92,7 +93,7 @@ jobs:
             gh release create "$TAG" \
               --title "$TITLE" \
               --generate-notes \
-              build/NootedGreen.kext \
+              pkg/NootedGreen.kext.zip \
               pkg/IrisXe-i3-1220P-tahoe.zip
           else
             TAG="build-${GITHUB_RUN_NUMBER}"
@@ -103,6 +104,6 @@ jobs:
               --title "$TITLE" \
               --notes "$NOTES" \
               --prerelease \
-              build/NootedGreen.kext \
+              pkg/NootedGreen.kext.zip \
               pkg/IrisXe-i3-1220P-tahoe.zip
           fi
