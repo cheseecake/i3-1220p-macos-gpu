@@ -12,8 +12,8 @@ fi
 HERE=${0:A:h}
 cd -- "$HERE"
 LE=$HERE/le; SLE=$HERE/sle; OUT=$HERE/out
-[[ -d $LE/AppleIntelTGLGraphics.kext && -d $SLE/AppleIntelTGLGraphicsMTLDriver.bundle && -d $OUT/xe.bundle ]] \
-  || { echo "missing bundles in $HERE (need le/ sle/ out/)"; exit 1; }
+[[ -d $LE/AppleIntelTGLGraphics.kext && -d $LE/HookCase.kext && -d $SLE/AppleIntelTGLGraphicsMTLDriver.bundle && -d $OUT/xe.bundle ]] \
+  || { echo "missing bundles in $HERE (need le/ with HookCase.kext, sle/ and out/)"; exit 1; }
 BUILD=$(sw_vers -buildVersion)
 if [[ $BUILD != 25G241 ]]; then
   print -P "  %F{yellow}!%f macOS build is $BUILD, the stack is made for 25G241 (Tahoe 26.7.1)."
@@ -30,7 +30,7 @@ plutil -replace CFBundleVersion -string 16.0.2 $K
 for b in AppleIntelTGLGraphicsMTLDriver AppleIntelTGLGraphicsGLDriver AppleIntelTGLGraphicsVADriver AppleIntelTGLGraphicsVAME AppleIntelGraphicsShared; do
   put $SLE/$b.bundle /Library/Extensions/$b.bundle
 done
-[[ -d $LE/HookCase.kext ]] && put $LE/HookCase.kext /Library/Extensions/HookCase.kext
+put $LE/HookCase.kext /Library/Extensions/HookCase.kext
 
 echo "== Metal driver (MTL17) and shared bundle in /Library/GPUBundles"
 put $OUT/AppleIntelTGLGraphicsMTLDriver.bundle /Library/GPUBundles/AppleIntelTGLGraphicsMTLDriver.bundle
@@ -40,9 +40,8 @@ echo "== shader compiler in /System/Library/Caches/xe.bundle"
 put $OUT/xe.bundle /System/Library/Caches/xe.bundle
 
 echo "== registering kexts in the Auxiliary Kernel Collection"
-kexts=(-p /Library/Extensions/AppleIntelTGLGraphics.kext -p /Library/Extensions/AppleIntelTGLGraphicsFramebuffer.kext)
-[[ -d /Library/Extensions/HookCase.kext ]] && kexts+=(-p /Library/Extensions/HookCase.kext)
-/usr/bin/kmutil load -z --load-style match-only $kexts 2>&1 || true
+kexts=(-p /Library/Extensions/HookCase.kext -p /Library/Extensions/AppleIntelTGLGraphics.kext -p /Library/Extensions/AppleIntelTGLGraphicsFramebuffer.kext)
+/usr/bin/kmutil load -z --load-style match-only $kexts
 
 cat <<EOF
 

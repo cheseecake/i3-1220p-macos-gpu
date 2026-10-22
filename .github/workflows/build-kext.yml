@@ -50,6 +50,18 @@ jobs:
       - name: Build NootedGreen.kext
         run: zsh build-nootedgreen.sh
 
+      - name: Build HookCase.kext
+        run: |
+          DERIVED=build/hookcase-derived
+          xcodebuild -project build/deps/NootedGreen/HookCase-master/HookCase.xcodeproj \
+            -target HookCase -configuration Release \
+            -derivedDataPath "$DERIVED" \
+            CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO \
+            -quiet
+          HOOKCASE=$(find "$DERIVED" -type d -path '*/Build/Products/Release/HookCase.kext' -print -quit)
+          test -n "$HOOKCASE" || { echo "HookCase.kext build output not found"; exit 1; }
+          echo "HOOKCASE=$HOOKCASE" >> "$GITHUB_ENV"
+
       - name: Build the user-space Metal + shader stack
         run: zsh macos/build-all.sh "$SLE"
 
@@ -61,6 +73,9 @@ jobs:
           codesign -dv build/NootedGreen.kext 2>&1 || true
           echo '== OSBundleLibraries'
           /usr/libexec/PlistBuddy -c 'Print :OSBundleLibraries' build/NootedGreen.kext/Contents/Info.plist
+          echo '== HookCase'
+          test -d "$HOOKCASE" || { echo "HookCase.kext missing"; exit 1; }
+          /usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' "$HOOKCASE/Contents/Info.plist"
           echo '== macos/out'
           ls -la macos/out
           echo '== xe.bundle/Contents/MacOS'
@@ -76,6 +91,7 @@ jobs:
           ditto -c -k --sequesterRsrc --keepParent build/NootedGreen.kext pkg/NootedGreen.kext.zip
           ditto "$SLE" "$PKG/sle"
           ditto "$LE"  "$PKG/le"
+          ditto "$HOOKCASE" "$PKG/le/HookCase.kext"
           ditto macos/out "$PKG/out"
           cp macos/install-release.sh "$PKG/install.command"
           chmod +x "$PKG/install.command"

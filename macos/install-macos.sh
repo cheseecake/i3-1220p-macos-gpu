@@ -11,6 +11,7 @@ set -e
 SLE=${1:?sle/}; LE=${2:?le/}
 HERE=${0:A:h}; OUT=$HERE/out
 [[ -d $OUT/xe.bundle && -d $OUT/AppleIntelTGLGraphicsMTLDriver.bundle ]] || { echo "run macos/build-all.sh first"; exit 1; }
+[[ -d $LE/HookCase.kext ]] || { echo "missing $LE/HookCase.kext (required by AppleIntelTGLGraphics.kext)"; exit 1; }
 put() { rm -rf "$2"; mkdir -p "$(dirname "$2")"; ditto "$1" "$2"; chown -R root:wheel "$2"; echo "  $2"; }
 
 echo "== kexts and bundles in /Library/Extensions"
@@ -23,7 +24,7 @@ plutil -replace CFBundleVersion -string 16.0.2 $K
 for b in AppleIntelTGLGraphicsMTLDriver AppleIntelTGLGraphicsGLDriver AppleIntelTGLGraphicsVADriver AppleIntelTGLGraphicsVAME AppleIntelGraphicsShared; do
   put $SLE/$b.bundle /Library/Extensions/$b.bundle
 done
-[[ -d $LE/HookCase.kext ]] && put $LE/HookCase.kext /Library/Extensions/HookCase.kext
+put $LE/HookCase.kext /Library/Extensions/HookCase.kext
 
 echo "== Metal driver (MTL17) and shared bundle in /Library/GPUBundles"
 put $OUT/AppleIntelTGLGraphicsMTLDriver.bundle /Library/GPUBundles/AppleIntelTGLGraphicsMTLDriver.bundle
@@ -33,7 +34,6 @@ echo "== shader compiler in /System/Library/Caches/xe.bundle (writable firmlink 
 put $OUT/xe.bundle /System/Library/Caches/xe.bundle
 
 echo "== registering kexts in the Auxiliary Kernel Collection"
-kexts=(-p /Library/Extensions/AppleIntelTGLGraphics.kext -p /Library/Extensions/AppleIntelTGLGraphicsFramebuffer.kext)
-[[ -d /Library/Extensions/HookCase.kext ]] && kexts+=(-p /Library/Extensions/HookCase.kext)
-/usr/bin/kmutil load -z --load-style match-only $kexts 2>&1 || true
+kexts=(-p /Library/Extensions/HookCase.kext -p /Library/Extensions/AppleIntelTGLGraphics.kext -p /Library/Extensions/AppleIntelTGLGraphicsFramebuffer.kext)
+/usr/bin/kmutil load -z --load-style match-only $kexts
 echo "done: approve the extension if asked, then reboot"
