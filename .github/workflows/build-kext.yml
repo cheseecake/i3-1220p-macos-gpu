@@ -52,13 +52,14 @@ jobs:
 
       - name: Build HookCase.kext
         run: |
-          DERIVED=build/hookcase-derived
+          OUT="$PWD/build/hookcase-out"
+          mkdir -p "$OUT"
           xcodebuild -project build/deps/NootedGreen/HookCase-master/HookCase.xcodeproj \
             -target HookCase -configuration Release \
-            -derivedDataPath "$DERIVED" \
+            SYMROOT="$OUT" OBJROOT="$OUT/obj" \
             CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO \
             -quiet
-          HOOKCASE=$(find "$DERIVED" -type d -path '*/Build/Products/Release/HookCase.kext' -print -quit)
+          HOOKCASE=$(find "$OUT" -type d -name 'HookCase.kext' -print -quit)
           test -n "$HOOKCASE" || { echo "HookCase.kext build output not found"; exit 1; }
           echo "HOOKCASE=$HOOKCASE" >> "$GITHUB_ENV"
 
