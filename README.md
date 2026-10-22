@@ -1,6 +1,6 @@
 # Intel UHD Graphics (i3-1220P) on macOS Tahoe — NootedGreen driver port
 
-Kernel + user-space graphics driver for the **Intel UHD Graphics of the Core i3-1220P (Alder Lake-P, 64 EU, 8086:4628)** on **macOS Tahoe 26.7.1 (25G241)**.
+Kernel + user-space graphics driver for the **Intel UHD Graphics of the Core i3-1220P (Alder Lake-P, 64 EU, 8086:46B3)** on **macOS Tahoe 26.7.1 (25G241)**.
 
 There is no Apple driver for Alder Lake. This project runs **Apple's own driver for Tiger Lake Iris Xe** (GPUDriversIntel 16.0.32, written for Macs that never shipped) on the newer GPU. Both GPUs share the Xe-LP (Gen12) architecture. A modified **NootedGreen** Lilu plugin bridges the generation gap in the kernel, and a set of user-space patches bridges the gap between that 2020-era driver and Tahoe's Metal stack.
 
@@ -42,7 +42,7 @@ You do **not** need a Mac to build the kext — it builds on GitHub.
 
 ### Option A — GitHub Actions (no Mac needed)
 
-Push to `main` or `port-i3-1220p` (or run the workflow manually from the Actions tab). The [build-kext](.github/workflows/build-kext.yml) workflow compiles `src/NootedGreen` on a macOS runner and uploads `NootedGreen.kext` as an artifact. Download it from the run's **Artifacts** section.
+Push to `main` or `port-i3-1220p` (or run the workflow manually from the Actions tab). The [build-kext](.github/workflows/build-kext.yml) workflow compiles `src/NootedGreen` on a macOS runner and publishes to **[Releases](../../releases)** — tag `v*` → that tag's release; any other run → a `build-<run number>` prerelease. Each release carries `NootedGreen.kext.zip` and the full `IrisXe-i3-1220P-tahoe.zip` installer. There are no Actions artifacts.
 
 ### Option B — local build (Command Line Tools only, on any Mac)
 
@@ -57,13 +57,22 @@ This kext cannot be built on Windows/Linux (needs `clang -mkernel`, MacKernelSDK
 
 ## Full acceleration stack (Metal)
 
-The kext alone is compositor-only. For Metal, build and install the user-space stack on the i3-1220P Hackintosh itself:
+The kext alone is compositor-only. Two ways to get Metal:
+
+**No build (recommended)** — download `IrisXe-i3-1220P-tahoe.zip` from [Releases](../../releases), unzip, and
+double-click `install.command` on the i3-1220P Hackintosh. It asks for your password, removes any previous
+install, then copies the prebuilt stack into place. Nothing is compiled and no Xcode is needed. Put the
+package's `NootedGreen.kext` in your EFI's `OC/Kexts/`, reboot.
+
+**From source** — build and install the user-space stack on the i3-1220P Hackintosh itself:
 
 ```sh
 zsh install.sh                  # checks, fetches Apple's 16.0.32 TGL bundles via NootedGreen, builds, installs
 ```
 
 Then copy `build/NootedGreen.kext` into your EFI's `OC/Kexts/` (this repo's kext replaces the one `install.sh` built), approve the extension if asked, and reboot. `zsh install.sh --check` runs only the checks; `zsh install.sh --uninstall` removes the stack.
+
+Either way, upgrading later is the same two moves: replace `NootedGreen.kext` in your EFI, re-run the installer (it clears the old install first), reboot.
 
 Prerequisites your EFI must already provide: device-id `0x9A49`, `AAPL,ig-platform-id=0x9A490000`, and the boot-args listed in [docs/PORT-I3-1220P.md](docs/PORT-I3-1220P.md#efi-prerequisites-you-set-these-not-ported).
 
@@ -72,7 +81,7 @@ Prerequisites your EFI must already provide: device-id `0x9A49`, `AAPL,ig-platfo
 ```
 src/NootedGreen/         the modified NootedGreen source (Lilu plugin), ported to 64 EU / 8 subslices
 build-nootedgreen.sh     builds src/NootedGreen with only the Command Line Tools
-.github/workflows/       CI: builds the kext on a macOS runner, uploads the artifact
+.github/workflows/       CI: builds the kext + Metal stack on a macOS runner, publishes to Releases
 patches/                 diff of this fork against upstream NootedGreen 95f8189
 macos/                   user-space stack: Metal driver patcher, libxedrv, shader compiler, installer
 tools/                   xe-res (resolution/DPI), xe-brilho (brightness), XeShim + xectl, diagnostics/

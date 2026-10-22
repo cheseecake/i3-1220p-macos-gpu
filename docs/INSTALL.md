@@ -3,7 +3,7 @@
 > **Short path:** `zsh build-nootedgreen.sh` (kext) then `zsh install.sh` (full acceleration stack). This guide is the
 > manual procedure behind those scripts. The kext-only port rationale is in [PORT-I3-1220P.md](PORT-I3-1220P.md).
 
-Target: **Intel Core i3-1220P (Alder Lake-P, 64 EU UHD, 8086:4628)**, **macOS Tahoe 26.7.1 (25G241)**. Other Alder
+Target: **Intel Core i3-1220P (Alder Lake-P, 64 EU UHD, 8086:46B3)**, **macOS Tahoe 26.7.1 (25G241)**. Other Alder
 Lake / Raptor Lake laptops may work with adjusted topology (`ngreensubslices`), but the patches were only tested here.
 
 > 🔧 This repo does **not** ship an EFI. You need your own OpenCore with **WhateverGreen** (or DeviceProperties)
@@ -49,7 +49,7 @@ installer runs on the firmware framebuffer, without acceleration.
 zsh build-nootedgreen.sh                 # -> build/NootedGreen.kext
 ```
 
-(Or download the `NootedGreen-kext` artifact from a [build-kext](../.github/workflows/build-kext.yml) workflow run.)
+(Or download `NootedGreen.kext.zip` from a [build-kext](../.github/workflows/build-kext.yml) workflow run's release — tag `v*` or the `build-<run number>` prerelease.)
 
 Put `build/NootedGreen.kext` in your EFI's `OC/Kexts/` and enable it in your `config.plist` with the boot-args from
 [PORT-I3-1220P.md](PORT-I3-1220P.md#efi-prerequisites-you-set-these-not-ported). Verify the topology picked up:

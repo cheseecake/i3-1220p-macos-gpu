@@ -11,9 +11,10 @@ Contents
 Steps
   1. Double-click install.command  (it asks for your password and runs the install),
        or run  sudo zsh install.command
-       Copies the 16.0.32 driver + shader stack into /Library/Extensions,
-       /Library/GPUBundles and /System/Library/Caches, and registers the
-       kexts in the Auxiliary Kernel Collection.
+       First removes any previous install (unload + delete), then copies the 16.0.32
+       driver + shader stack into /Library/Extensions, /Library/GPUBundles and
+       /System/Library/Caches, and registers the kexts in the Auxiliary Kernel Collection.
+       Re-running it is safe: it always replaces, never stacks.
   2. Copy NootedGreen.kext into your EFI's OC/Kexts/ and enable it in
        config.plist (boot-args from the repo's docs/PORT-I3-1220P.md).
        Your OpenCore must already spoof device-id 9A49 + ig-platform-id
@@ -21,6 +22,13 @@ Steps
   3. Reboot. If asked, approve the extension in
        System Settings > Privacy & Security.
   4. Check: system_profiler SPDisplaysDataType   (look for "Metal Support")
+
+Upgrading an existing install
+  Two things move: the kernel plugin and the user-space stack.
+    - Replace EFI/OC/Kexts/NootedGreen.kext with the new one (this package's copy).
+    - Run install.command again (double-click). It clears the old /Library + /Caches
+      pieces first, so nothing stale survives.
+  Then reboot. No need to uninstall manually first.
 
 Requirements
   - macOS Tahoe 26.7.1, build 25G241 exactly (the patches target this IOAF2 build).

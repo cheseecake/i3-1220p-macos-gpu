@@ -21,6 +21,24 @@ if [[ $BUILD != 25G241 ]]; then
 fi
 put() { rm -rf "$2"; mkdir -p "$(dirname "$2")"; ditto "$1" "$2"; chown -R root:wheel "$2"; echo "  $2"; }
 
+# Upgrade path: drop the previous install first so a re-run never leaves a half-old mix behind.
+# Unload before copying — a TGL kext that is loaded cannot be replaced cleanly under it.
+echo "== removing any previous install"
+/usr/bin/kmutil unload -p /Library/Extensions/AppleIntelTGLGraphics.kext 2>/dev/null || true
+/usr/bin/kmutil unload -p /Library/Extensions/AppleIntelTGLGraphicsFramebuffer.kext 2>/dev/null || true
+/usr/bin/kmutil unload -p /Library/Extensions/HookCase.kext 2>/dev/null || true
+rm -rf /Library/Extensions/AppleIntelTGLGraphics.kext \
+       /Library/Extensions/AppleIntelTGLGraphicsFramebuffer.kext \
+       /Library/Extensions/AppleIntelTGLGraphicsMTLDriver.bundle \
+       /Library/Extensions/AppleIntelTGLGraphicsGLDriver.bundle \
+       /Library/Extensions/AppleIntelTGLGraphicsVADriver.bundle \
+       /Library/Extensions/AppleIntelTGLGraphicsVAME.bundle \
+       /Library/Extensions/AppleIntelGraphicsShared.bundle \
+       /Library/Extensions/HookCase.kext \
+       /Library/GPUBundles/AppleIntelTGLGraphicsMTLDriver.bundle \
+       /Library/GPUBundles/AppleIntelGraphicsShared.bundle \
+       /System/Library/Caches/xe.bundle
+
 echo "== kexts and bundles in /Library/Extensions"
 put $LE/AppleIntelTGLGraphics.kext /Library/Extensions/AppleIntelTGLGraphics.kext
 put $LE/AppleIntelTGLGraphicsFramebuffer.kext /Library/Extensions/AppleIntelTGLGraphicsFramebuffer.kext

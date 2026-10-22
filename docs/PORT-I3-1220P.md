@@ -13,7 +13,7 @@ unchanged — this is a source-data port, not a structural one.
 | | Source (main) | Target (this branch) |
 |---|---|---|
 | CPU | i7-1360P (RPL-P) | i3-1220P (ADL-P, model 0x9A) |
-| iGPU device-id | 0xA7A0 (real) | 0x4628 (real, UNVERIFIED — read from your machine) |
+| iGPU device-id | 0xA7A0 (real) | 0x46B3 (real — read from the machine's PCI path) |
 | EU | 96 (6 DSS) | 64 (4 DSS) |
 | NumSubSlices (SS) | 12 | 8 |
 | MaxEU/SS | 8 | 8 |
@@ -47,7 +47,7 @@ Every fork patch was classified into: **(a)** hardware-independent (Tahoe/TGL-dr
 | XE-GTFREQ floor (default 1100) | c | **unchanged** | floor == i3-1220P RP0, so busy→RP0, idle→RC6; cap 1500 is never hit at default |
 | XE-* scheduler/memory patches (CSBGUARD, SAMETAIL, ELSQ*, POOL2, PAGEONGUARD, RESFREE, etc.) | a | **unchanged** | Tahoe/IOAF2 workarounds, generation-agnostic |
 | `kern_start.cpp` KernelVersion::Tahoe | a | **unchanged** | already Tahoe-min |
-| `getBranding()` device tables (`kern_model.hpp`) | c | **likely unchanged** (0x4628 already in `g12_adl`); cosmetic only |
+| `getBranding()` device tables (`kern_model.hpp`) | c | **likely unchanged** (0x46B3 already in `g12_adl`); cosmetic only |
 
 **Net code change: 2 lines of logic** (NumSubSlices 12→8 in two places) + boot-arg configurability + a platform debug log. The TGL driver, display path, DMC, link training, device-id spoof and frequency control are all generation-agnostic or already ADL-P-aware.
 
@@ -106,7 +106,7 @@ Lilu truncates at ~228 chars — keep it short.
 Mark UNVERIFIED → confirm on the actual hardware. The kext's *functionality* only depends on NumSubSlices (8) which matches the i3-1220P; everything below is for confidence/labeling only.
 
 ```bash
-# Real PCI device-id (expect 0x4628 / "UHD" for 64 EU ADL-P; NOT 0x46B3)
+# Real PCI device-id (this machine: 0x46B3)
 gfxutil -f IGPU
 ioreg -r -c IOPCIDevice -n IGPU -d 1 | grep -E 'device-id|revision-id|vendor-id'
 # EU count / topology from the loaded driver (once NootedGreen loads):
@@ -118,7 +118,7 @@ system_profiler SPHardwareDataType
 ```
 
 Confirm:
-1. Real device-id (and that it's listed in `kern_model.hpp` `g12_adl`; `0x4628` is). If it's not listed, the log label falls back harmlessly — functionality is unaffected.
+1. Real device-id (and that it's listed in `kern_model.hpp` `g12_adl`; `0x46B3` is). If it's not listed, the log label falls back harmlessly — functionality is unaffected.
 2. EU count = 64 (so NumSubSlices = 8 is the right default). If your EU differs (80 = 5 DSS → 10 SS), set `ngreensubslices=10`.
 3. Panel EDID/resolution and link-rate/lane-count. The XE-FBDPMS backlight-only sleep and the `keepefi`/`-ngreenkeepefi` logic assume an internal eDP panel trained by UEFI/GOP, like the source's. If your panel differs (e.g. 4-lane HBR3 vs the source's), check the display/EDID collection step.
 
@@ -167,7 +167,7 @@ NootedGreen is Thou Shalt Not Profit 1.0; forks inherit it. License headers and 
 
 ## UNVERIFIED items (need your machine)
 
-- Real ADL-P device-id (stated 0x46B3, expected 0x4628). Cosmetic-only for the kext; does not change behavior.
-- EU count = 64 (drives NumSubSlices=8). If different, set `ngreensubslices=N`.
+- Real ADL-P device-id = **0x46B3** (confirmed on this machine, PCI path `8086:46B3`, subsystem `80121E50`). Cosmetic-only for the kext; does not change behavior. Note that the PCI id does **not** carry the GT/topology: i915 maps every ADL-P id (0x4628, 0x46B3, …) to one `adl_p_info` struct and derives slices/subslices/EUs from the GPU's fuses at runtime. So the device-id cannot tell you the EU count — item 2 below has to come from the hardware.
+- EU count = 64 (drives NumSubSlices=8). UNVERIFIED against i915 for 0x46B3 specifically; confirm with `ioreg` (the command above) or `tools/`. If different, set `ngreensubslices=N`.
 - i3-1220P RP0 = 1100 MHz (XE-GTFREQ default). If your BIOS allows a different max, adjust `ngreengtfreq`.
 - L3BankCount = 8, MaxEU/SS = 8 for ADL-P GT2 (assumed same as RPL; UNVERIFIED against i915 for this exact SKU). Override via `ngreenl3banks`/`ngreenmaxeu` if wrong.
