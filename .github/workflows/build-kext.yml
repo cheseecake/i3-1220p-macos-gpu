@@ -52,6 +52,18 @@ jobs:
 
       - name: Build HookCase.kext
         run: |
+          SRC=build/deps/NootedGreen/HookCase-master/HookCase/HookCase.cpp
+
+          # Fix untuk SDK baru: lck_rw_try_lock sekarang butuh lck_rw_type_t, bukan int
+          sed -i '' \
+            -e 's#lck_rw_try_lock(&(map_local->lock), 2)#lck_rw_try_lock(\&(map_local->lock), LCK_RW_TYPE_EXCLUSIVE)#' \
+            -e 's#lck_rw_try_lock(&(map_local->lock), 1)#lck_rw_try_lock(\&(map_local->lock), LCK_RW_TYPE_SHARED)#' \
+            "$SRC"
+          grep -n 'lck_rw_try_lock' "$SRC"
+          if grep -Eq 'lck_rw_try_lock\(&\(map_local->lock\), [12]\)' "$SRC"; then
+            echo "patch lck_rw_try_lock gagal"; exit 1
+          fi
+
           OUT="$PWD/build/hookcase-out"
           mkdir -p "$OUT"
           xcodebuild -project build/deps/NootedGreen/HookCase-master/HookCase.xcodeproj \
