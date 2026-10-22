@@ -56,6 +56,20 @@ git -C $NG fetch -q origin $NG_COMMIT 2>/dev/null || true
 git -C $NG checkout -q $NG_COMMIT
 SLE=$NG/sle_Internal/sle; LE=$NG/sle_Internal/le
 [[ -d $SLE/AppleIntelTGLGraphicsMTLDriver.bundle && -d $LE/AppleIntelTGLGraphics.kext ]] && ok "driver bundles found" || fail "sle_Internal not found in NootedGreen"
+if [[ ! -d $LE/HookCase.kext ]]; then
+  warn "HookCase.kext is missing in sle_Internal/le at $NG_COMMIT; building it from HookCase-master"
+  command -v xcodebuild >/dev/null || fail "xcodebuild is required to build HookCase.kext (install Xcode, then re-run install.sh)"
+  HC=$NG/HookCase-master
+  [[ -d $HC/HookCase.xcodeproj ]] || fail "HookCase project not found at $HC/HookCase.xcodeproj"
+  DERIVED=$ROOT/build/hookcase-derived
+  rm -rf $DERIVED
+  xcodebuild -project $HC/HookCase.xcodeproj -target HookCase -configuration Release \
+    -derivedDataPath $DERIVED CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO >/dev/null
+  HOOKCASE=$(find $DERIVED -type d -path '*/Build/Products/Release/HookCase.kext' -print -quit)
+  [[ -n $HOOKCASE && -d $HOOKCASE ]] || fail "failed to build HookCase.kext"
+  ditto $HOOKCASE $LE/HookCase.kext
+  ok "HookCase.kext prepared"
+fi
 
 echo "== 3. build"
 zsh $ROOT/build-nootedgreen.sh | tail -1

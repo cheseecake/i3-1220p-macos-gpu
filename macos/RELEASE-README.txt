@@ -3,7 +3,7 @@ on macOS Tahoe 26.7.1 (build 25G241). Full Metal. No Xcode required.
 
 Contents
   NootedGreen.kext   Lilu plugin (the i3-1220P port). Goes in YOUR EFI.
-  le/                 Apple's 16.0.32 TGL kexts (com.xxxxx bundle IDs).
+  le/                 Apple's 16.0.32 TGL kexts (com.xxxxx bundle IDs) + HookCase.kext.
   sle/               Apple's 16.0.32 TGL GL/VA/VAME/Shared/MTL bundles.
   out/                Prebuilt Metal stack: patched MTL17 bundle + xe.bundle (shader compiler).
   install.command     Copy-only installer (ditto + plutil + kmutil). No build. Double-click it.
