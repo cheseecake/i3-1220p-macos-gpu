@@ -2,7 +2,7 @@ build/
 macos/out/
 tools/build/
 .DS_Store
-*.dSYM/
+*.dSYM/ 
 dist/
 .contentFlavour
 .contentVisibility
